@@ -1,10 +1,13 @@
-# Keep personal voice recordings and generated audio private
-data/audio/raw/
-data/audio/processed/
+# Raw voice recordings (data/audio/raw/) ARE committed: the assignment asks for
+# the datasets, and the voice model is trained from them.
+
+# Generated audio can be rebuilt with: python src/audio_pipeline.py
+# ...but keep the feature file, it is a required deliverable.
+data/audio/processed/*
+!data/audio/processed/audio_features.csv
 data/audio/augmented/
 
-# Model files
-models/*.joblib
+# Model files ARE committed (models/*.joblib): the command-line app needs them.
 
 # Python temporary files
 __pycache__/

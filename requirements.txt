@@ -5,3 +5,11 @@ seaborn
 openpyxl
 scikit-learn
 jupyter
+joblib
+# images (Task 2): OpenCV 4.x still ships the Haar face-detector files (5.x dropped them)
+opencv-python>=4.8,<5
+scikit-image
+Pillow
+# audio (Task 3)
+librosa
+soundfile
