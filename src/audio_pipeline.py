@@ -16,6 +16,7 @@ AUGMENTED_DIR = PROJECT_DIR / "data" / "audio" / "augmented"
 
 SAMPLE_RATE = 16000
 RANDOM_SEED = 42
+AUDIO_EXTS = (".wav", ".mp3", ".flac", ".ogg")   # librosa/soundfile can read all of these
 
 
 def normalize_audio(audio):
@@ -28,8 +29,8 @@ def normalize_audio(audio):
     return audio
 
 
-def preprocess_audio(input_path, output_path):
-    """Load, trim silence, normalize, and save an audio recording."""
+def load_audio(input_path):
+    """Load as 16 kHz mono, trim silence and normalize (no file is written)."""
     audio, sr = librosa.load(
         input_path,
         sr=SAMPLE_RATE,
@@ -41,7 +42,12 @@ def preprocess_audio(input_path, output_path):
     if len(audio) == 0:
         raise ValueError(f"No usable audio found in {input_path}")
 
-    audio = normalize_audio(audio)
+    return normalize_audio(audio)
+
+
+def preprocess_audio(input_path, output_path):
+    """Load, trim silence, normalize, and save an audio recording."""
+    audio = load_audio(input_path)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     sf.write(output_path, audio, SAMPLE_RATE)
@@ -142,14 +148,16 @@ def run_pipeline():
 
     feature_rows = []
 
-    raw_files = list(RAW_DIR.rglob("*.wav"))
+    raw_files = sorted(
+        p for p in RAW_DIR.rglob("*") if p.suffix.lower() in AUDIO_EXTS
+    )
 
     if not raw_files:
-        print(f"No WAV recordings found in {RAW_DIR}")
+        print(f"No audio recordings found in {RAW_DIR}")
         return
 
     for input_path in raw_files:
-        speaker = input_path.parent.name
+        speaker = input_path.parent.name.lower()
         original_name = input_path.stem
 
         clean_path = PROCESSED_DIR / f"{original_name}_clean.wav"
@@ -199,6 +207,28 @@ def run_pipeline():
     print(f"Processed recordings: {len(raw_files)}")
     print(f"Feature dataset shape: {features_df.shape}")
     print(f"Saved features to: {csv_path}")
+
+
+# ------------------------------------------------------------------
+# Helpers used by the command-line app (app/cli.py).
+# They reuse the functions above, so a login clip is processed exactly
+# like the training clips.
+# ------------------------------------------------------------------
+def list_raw_audio():
+    """One row per raw recording: member (folder name), phrase, path."""
+    rows = []
+    for path in sorted(RAW_DIR.rglob("*")):
+        if path.suffix.lower() in AUDIO_EXTS:
+            member = path.parent.name.lower()
+            phrase = path.stem.lower().replace(" ", "")
+            phrase = phrase[len(member) + 1:] if phrase.startswith(member + "_") else phrase
+            rows.append({"member": member, "phrase": phrase, "path": path})
+    return pd.DataFrame(rows, columns=["member", "phrase", "path"])
+
+
+def audio_to_features(path):
+    """One audio file -> one-row feature table (same columns as training)."""
+    return pd.DataFrame([extract_features(load_audio(path))])
 
 
 if __name__ == "__main__":
